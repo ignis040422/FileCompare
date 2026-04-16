@@ -9,7 +9,7 @@ namespace FileCompare
         static void Main()
         {
             ApplicationConfiguration.Initialize();
-            Application.Run(new File_Compare());
+            Application.Run(new Form1());
         }
     }
 }
