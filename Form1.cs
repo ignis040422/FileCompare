@@ -20,8 +20,7 @@ namespace FileCompare
         }
 
         /// <summary>
-        /// 프로그램 시작 시 기본 상태를 설정하는 함수
-        /// 경로는 비워 두고, 파일 목록도 비워 두며, 선택된 항목도 없게 만든다.
+        /// 프로그램 시작 시 기본 상태 설정
         /// </summary>
         private void InitDefaultState()
         {
@@ -38,7 +37,7 @@ namespace FileCompare
         }
 
         /// <summary>
-        /// 왼쪽/오른쪽 ListView를 표 형태로 초기화하는 함수
+        /// 왼쪽/오른쪽 ListView를 표 형태로 초기화
         /// </summary>
         private void InitListView()
         {
@@ -66,7 +65,7 @@ namespace FileCompare
         }
 
         /// <summary>
-        /// 왼쪽 폴더 선택 버튼 클릭 이벤트
+        /// 왼쪽 폴더 선택 버튼 클릭
         /// </summary>
         private void btnLeftDir_Click(object sender, EventArgs e)
         {
@@ -89,7 +88,7 @@ namespace FileCompare
         }
 
         /// <summary>
-        /// 오른쪽 폴더 선택 버튼 클릭 이벤트
+        /// 오른쪽 폴더 선택 버튼 클릭
         /// </summary>
         private void btnRightDir_Click(object sender, EventArgs e)
         {
@@ -112,37 +111,28 @@ namespace FileCompare
         }
 
         /// <summary>
-        /// 양쪽 목록을 다시 읽고 비교 결과까지 갱신하는 함수
+        /// 양쪽 목록을 다시 읽고 비교 결과까지 갱신
         /// </summary>
         private void RefreshAllViews()
         {
             if (Directory.Exists(txtLeftDir.Text))
-            {
                 PopulateListView(lvwLeftDir, txtLeftDir.Text);
-            }
             else
-            {
                 lvwLeftDir.Items.Clear();
-            }
 
             if (Directory.Exists(txtRightDir.Text))
-            {
                 PopulateListView(lvwRightDir, txtRightDir.Text);
-            }
             else
-            {
                 lvwRightDir.Items.Clear();
-            }
 
-            CompareFiles();
+            CompareEntries();
 
-            // 새로고침 후 자동 선택 제거
             lvwLeftDir.SelectedItems.Clear();
             lvwRightDir.SelectedItems.Clear();
         }
 
         /// <summary>
-        /// 선택된 폴더의 하위 폴더 및 파일 목록을 ListView에 표시하는 함수
+        /// 선택된 폴더의 하위 폴더 및 파일 목록을 ListView에 표시
         /// </summary>
         private void PopulateListView(ListView lv, string folderPath)
         {
@@ -151,7 +141,7 @@ namespace FileCompare
 
             try
             {
-                // 폴더(디렉터리) 먼저 추가
+                // 하위 폴더 먼저 추가
                 var dirs = Directory.EnumerateDirectories(folderPath)
                     .Select(p => new DirectoryInfo(p))
                     .OrderBy(d => d.Name);
@@ -201,10 +191,10 @@ namespace FileCompare
         }
 
         /// <summary>
-        /// 양쪽 폴더의 파일을 이름과 수정시간 기준으로 비교하여 색상을 표시하는 함수
-        /// 동일 파일: 검정 / 최신 파일: 빨강 / 오래된 파일: 회색 / 단독 파일: 보라
+        /// 폴더와 파일을 모두 이름 기준으로 비교하여 색상 표시
+        /// 동일: 검정 / 최신: 빨강 / 오래됨: 회색 / 단독 항목: 보라
         /// </summary>
-        private void CompareFiles()
+        private void CompareEntries()
         {
             if (string.IsNullOrWhiteSpace(txtLeftDir.Text) ||
                 string.IsNullOrWhiteSpace(txtRightDir.Text))
@@ -214,14 +204,18 @@ namespace FileCompare
                 return;
 
             foreach (ListViewItem item in lvwLeftDir.Items)
-            {
                 item.ForeColor = Color.Black;
-            }
 
             foreach (ListViewItem item in lvwRightDir.Items)
-            {
                 item.ForeColor = Color.Black;
-            }
+
+            var leftDirs = Directory.EnumerateDirectories(txtLeftDir.Text)
+                .Select(p => new DirectoryInfo(p))
+                .ToDictionary(d => d.Name, d => d);
+
+            var rightDirs = Directory.EnumerateDirectories(txtRightDir.Text)
+                .Select(p => new DirectoryInfo(p))
+                .ToDictionary(d => d.Name, d => d);
 
             var leftFiles = Directory.EnumerateFiles(txtLeftDir.Text)
                 .Select(p => new FileInfo(p))
@@ -231,85 +225,109 @@ namespace FileCompare
                 .Select(p => new FileInfo(p))
                 .ToDictionary(f => f.Name, f => f);
 
+            // 왼쪽 항목 비교
             foreach (ListViewItem item in lvwLeftDir.Items)
             {
-                if (item.SubItems.Count > 1 && item.SubItems[1].Text == "<DIR>")
-                    continue;
+                string name = item.Text;
+                bool isDir = item.SubItems[1].Text == "<DIR>";
 
-                string fileName = item.Text;
-
-                if (rightFiles.ContainsKey(fileName))
+                if (isDir)
                 {
-                    var lf = leftFiles[fileName];
-                    var rf = rightFiles[fileName];
+                    if (rightDirs.ContainsKey(name))
+                    {
+                        var ld = leftDirs[name];
+                        var rd = rightDirs[name];
 
-                    if (lf.LastWriteTime == rf.LastWriteTime)
-                    {
-                        item.ForeColor = Color.Black;
-                    }
-                    else if (lf.LastWriteTime > rf.LastWriteTime)
-                    {
-                        item.ForeColor = Color.Red;
+                        if (ld.LastWriteTime == rd.LastWriteTime)
+                            item.ForeColor = Color.Black;
+                        else if (ld.LastWriteTime > rd.LastWriteTime)
+                            item.ForeColor = Color.Red;
+                        else
+                            item.ForeColor = Color.Gray;
                     }
                     else
                     {
-                        item.ForeColor = Color.Gray;
+                        item.ForeColor = Color.Purple;
                     }
                 }
                 else
                 {
-                    item.ForeColor = Color.Purple;
+                    if (rightFiles.ContainsKey(name))
+                    {
+                        var lf = leftFiles[name];
+                        var rf = rightFiles[name];
+
+                        if (lf.LastWriteTime == rf.LastWriteTime)
+                            item.ForeColor = Color.Black;
+                        else if (lf.LastWriteTime > rf.LastWriteTime)
+                            item.ForeColor = Color.Red;
+                        else
+                            item.ForeColor = Color.Gray;
+                    }
+                    else
+                    {
+                        item.ForeColor = Color.Purple;
+                    }
                 }
             }
 
+            // 오른쪽 항목 비교
             foreach (ListViewItem item in lvwRightDir.Items)
             {
-                if (item.SubItems.Count > 1 && item.SubItems[1].Text == "<DIR>")
-                    continue;
+                string name = item.Text;
+                bool isDir = item.SubItems[1].Text == "<DIR>";
 
-                string fileName = item.Text;
-
-                if (leftFiles.ContainsKey(fileName))
+                if (isDir)
                 {
-                    var rf = rightFiles[fileName];
-                    var lf = leftFiles[fileName];
+                    if (leftDirs.ContainsKey(name))
+                    {
+                        var rd = rightDirs[name];
+                        var ld = leftDirs[name];
 
-                    if (rf.LastWriteTime == lf.LastWriteTime)
-                    {
-                        item.ForeColor = Color.Black;
-                    }
-                    else if (rf.LastWriteTime > lf.LastWriteTime)
-                    {
-                        item.ForeColor = Color.Red;
+                        if (rd.LastWriteTime == ld.LastWriteTime)
+                            item.ForeColor = Color.Black;
+                        else if (rd.LastWriteTime > ld.LastWriteTime)
+                            item.ForeColor = Color.Red;
+                        else
+                            item.ForeColor = Color.Gray;
                     }
                     else
                     {
-                        item.ForeColor = Color.Gray;
+                        item.ForeColor = Color.Purple;
                     }
                 }
                 else
                 {
-                    item.ForeColor = Color.Purple;
+                    if (leftFiles.ContainsKey(name))
+                    {
+                        var rf = rightFiles[name];
+                        var lf = leftFiles[name];
+
+                        if (rf.LastWriteTime == lf.LastWriteTime)
+                            item.ForeColor = Color.Black;
+                        else if (rf.LastWriteTime > lf.LastWriteTime)
+                            item.ForeColor = Color.Red;
+                        else
+                            item.ForeColor = Color.Gray;
+                    }
+                    else
+                    {
+                        item.ForeColor = Color.Purple;
+                    }
                 }
             }
-
-            lvwLeftDir.SelectedItems.Clear();
-            lvwRightDir.SelectedItems.Clear();
         }
 
         /// <summary>
-        /// 실제 파일 복사를 수행하는 함수
-        /// 목적지 파일이 이미 존재하면 날짜를 비교한 뒤 덮어쓰기 여부를 확인받는다.
+        /// 파일 복사 시 대상 파일이 있으면 수정일을 보여주고 덮어쓰기 여부 확인
+        /// 성공 시 true, 취소/실패 시 false 반환
         /// </summary>
-        /// <param name="srcPath">원본 파일 경로</param>
-        /// <param name="destPath">대상 파일 경로</param>
-        private void CopyFileWithConfirmation(string srcPath, string destPath)
+        private bool CopyFileWithConfirmation(string srcPath, string destPath)
         {
             try
             {
                 FileInfo srcFile = new FileInfo(srcPath);
 
-                // 대상 파일이 이미 존재하면 날짜를 비교해서 확인창 표시
                 if (File.Exists(destPath))
                 {
                     FileInfo destFile = new FileInfo(destPath);
@@ -325,22 +343,63 @@ namespace FileCompare
 
                     if (result != DialogResult.Yes)
                     {
-                        return;
+                        return false;
                     }
                 }
 
-                // 복사 실행
                 File.Copy(srcPath, destPath, true);
+                return true;
             }
             catch (IOException ex)
             {
                 MessageBox.Show("복사 중 오류: " + ex.Message, "오류",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
             }
         }
 
         /// <summary>
-        /// 왼쪽에서 선택한 파일을 오른쪽 폴더로 복사
+        /// 폴더 전체를 재귀적으로 복사
+        /// 내부 파일과 하위폴더까지 모두 복사
+        /// 하나라도 취소/실패하면 false 반환
+        /// </summary>
+        private bool CopyDirectoryRecursive(string srcDir, string destDir)
+        {
+            bool allSuccess = true;
+            DirectoryInfo source = new DirectoryInfo(srcDir);
+
+            if (!Directory.Exists(destDir))
+            {
+                Directory.CreateDirectory(destDir);
+            }
+
+            // 현재 폴더 안 파일 복사
+            foreach (FileInfo file in source.GetFiles())
+            {
+                string destFilePath = Path.Combine(destDir, file.Name);
+
+                if (!CopyFileWithConfirmation(file.FullName, destFilePath))
+                {
+                    allSuccess = false;
+                }
+            }
+
+            // 하위 폴더 재귀 복사
+            foreach (DirectoryInfo subDir in source.GetDirectories())
+            {
+                string nextDestDir = Path.Combine(destDir, subDir.Name);
+
+                if (!CopyDirectoryRecursive(subDir.FullName, nextDestDir))
+                {
+                    allSuccess = false;
+                }
+            }
+
+            return allSuccess;
+        }
+
+        /// <summary>
+        /// 왼쪽에서 선택한 파일 또는 폴더를 오른쪽으로 복사
         /// </summary>
         private void btnCopyFromLeft_Click(object sender, EventArgs e)
         {
@@ -352,30 +411,52 @@ namespace FileCompare
 
             if (lvwLeftDir.SelectedItems.Count == 0)
             {
-                MessageBox.Show("왼쪽 목록에서 복사할 파일을 선택하세요.", "안내");
+                MessageBox.Show("왼쪽 목록에서 복사할 항목을 선택하세요.", "안내");
                 return;
             }
 
             var selectedItem = lvwLeftDir.SelectedItems[0];
+            string name = selectedItem.Text;
+            bool isDir = selectedItem.SubItems[1].Text == "<DIR>";
+            bool success = false;
 
-            // 폴더는 아직 복사하지 않음
-            if (selectedItem.SubItems[1].Text == "<DIR>")
+            try
             {
-                MessageBox.Show("현재 단계에서는 폴더가 아닌 파일만 복사할 수 있습니다.", "안내");
-                return;
+                if (isDir)
+                {
+                    string srcDir = Path.Combine(txtLeftDir.Text, name);
+                    string destDir = Path.Combine(txtRightDir.Text, name);
+
+                    success = CopyDirectoryRecursive(srcDir, destDir);
+                }
+                else
+                {
+                    string srcFile = Path.Combine(txtLeftDir.Text, name);
+                    string destFile = Path.Combine(txtRightDir.Text, name);
+
+                    success = CopyFileWithConfirmation(srcFile, destFile);
+                }
+
+                RefreshAllViews();
+
+                if (success)
+                {
+                    MessageBox.Show("복사가 완료되었습니다.", "안내");
+                }
+                else
+                {
+                    MessageBox.Show("복사가 일부만 완료되었거나 취소되었습니다.", "안내");
+                }
             }
-
-            string fileName = selectedItem.Text;
-            string srcPath = Path.Combine(txtLeftDir.Text, fileName);
-            string destPath = Path.Combine(txtRightDir.Text, fileName);
-
-            CopyFileWithConfirmation(srcPath, destPath);
-
-            RefreshAllViews();
+            catch (Exception ex)
+            {
+                MessageBox.Show("복사 중 오류: " + ex.Message, "오류",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         /// <summary>
-        /// 오른쪽에서 선택한 파일을 왼쪽 폴더로 복사
+        /// 오른쪽에서 선택한 파일 또는 폴더를 왼쪽으로 복사
         /// </summary>
         private void btnCopyFromRight_Click(object sender, EventArgs e)
         {
@@ -387,26 +468,48 @@ namespace FileCompare
 
             if (lvwRightDir.SelectedItems.Count == 0)
             {
-                MessageBox.Show("오른쪽 목록에서 복사할 파일을 선택하세요.", "안내");
+                MessageBox.Show("오른쪽 목록에서 복사할 항목을 선택하세요.", "안내");
                 return;
             }
 
             var selectedItem = lvwRightDir.SelectedItems[0];
+            string name = selectedItem.Text;
+            bool isDir = selectedItem.SubItems[1].Text == "<DIR>";
+            bool success = false;
 
-            // 폴더는 아직 복사하지 않음
-            if (selectedItem.SubItems[1].Text == "<DIR>")
+            try
             {
-                MessageBox.Show("현재 단계에서는 폴더가 아닌 파일만 복사할 수 있습니다.", "안내");
-                return;
+                if (isDir)
+                {
+                    string srcDir = Path.Combine(txtRightDir.Text, name);
+                    string destDir = Path.Combine(txtLeftDir.Text, name);
+
+                    success = CopyDirectoryRecursive(srcDir, destDir);
+                }
+                else
+                {
+                    string srcFile = Path.Combine(txtRightDir.Text, name);
+                    string destFile = Path.Combine(txtLeftDir.Text, name);
+
+                    success = CopyFileWithConfirmation(srcFile, destFile);
+                }
+
+                RefreshAllViews();
+
+                if (success)
+                {
+                    MessageBox.Show("복사가 완료되었습니다.", "안내");
+                }
+                else
+                {
+                    MessageBox.Show("복사가 일부만 완료되었거나 취소되었습니다.", "안내");
+                }
             }
-
-            string fileName = selectedItem.Text;
-            string srcPath = Path.Combine(txtRightDir.Text, fileName);
-            string destPath = Path.Combine(txtLeftDir.Text, fileName);
-
-            CopyFileWithConfirmation(srcPath, destPath);
-
-            RefreshAllViews();
+            catch (Exception ex)
+            {
+                MessageBox.Show("복사 중 오류: " + ex.Message, "오류",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }
