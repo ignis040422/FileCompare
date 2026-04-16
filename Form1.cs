@@ -202,6 +202,7 @@ namespace FileCompare
 
         /// <summary>
         /// 양쪽 폴더의 파일을 이름과 수정시간 기준으로 비교하여 색상을 표시하는 함수
+        /// 동일 파일: 검정 / 최신 파일: 빨강 / 오래된 파일: 회색 / 단독 파일: 보라
         /// </summary>
         private void CompareFiles()
         {
@@ -297,8 +298,49 @@ namespace FileCompare
         }
 
         /// <summary>
-        /// 왼쪽에서 선택한 파일을 오른쪽 폴더로 복사하는 중간 단계 기능
-        /// 아직 덮어쓰기 확인창은 구현하지 않음
+        /// 실제 파일 복사를 수행하는 함수
+        /// 목적지 파일이 이미 존재하면 날짜를 비교한 뒤 덮어쓰기 여부를 확인받는다.
+        /// </summary>
+        /// <param name="srcPath">원본 파일 경로</param>
+        /// <param name="destPath">대상 파일 경로</param>
+        private void CopyFileWithConfirmation(string srcPath, string destPath)
+        {
+            try
+            {
+                FileInfo srcFile = new FileInfo(srcPath);
+
+                // 대상 파일이 이미 존재하면 날짜를 비교해서 확인창 표시
+                if (File.Exists(destPath))
+                {
+                    FileInfo destFile = new FileInfo(destPath);
+
+                    DialogResult result = MessageBox.Show(
+                        "같은 이름의 파일이 이미 존재합니다.\n\n" +
+                        "원본 파일 수정일: " + srcFile.LastWriteTime.ToString("g") + "\n" +
+                        "대상 파일 수정일: " + destFile.LastWriteTime.ToString("g") + "\n\n" +
+                        "덮어쓰시겠습니까?",
+                        "덮어쓰기 확인",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Question);
+
+                    if (result != DialogResult.Yes)
+                    {
+                        return;
+                    }
+                }
+
+                // 복사 실행
+                File.Copy(srcPath, destPath, true);
+            }
+            catch (IOException ex)
+            {
+                MessageBox.Show("복사 중 오류: " + ex.Message, "오류",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// 왼쪽에서 선택한 파일을 오른쪽 폴더로 복사
         /// </summary>
         private void btnCopyFromLeft_Click(object sender, EventArgs e)
         {
@@ -327,26 +369,13 @@ namespace FileCompare
             string srcPath = Path.Combine(txtLeftDir.Text, fileName);
             string destPath = Path.Combine(txtRightDir.Text, fileName);
 
-            try
-            {
-                // 중간 단계이므로 단순 복사만 수행
-                // 기존 파일이 있으면 덮어쓰기(true)
-                File.Copy(srcPath, destPath, true);
+            CopyFileWithConfirmation(srcPath, destPath);
 
-                MessageBox.Show("파일 복사가 완료되었습니다.", "안내");
-
-                RefreshAllViews();
-            }
-            catch (IOException ex)
-            {
-                MessageBox.Show("복사 중 오류: " + ex.Message, "오류",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            RefreshAllViews();
         }
 
         /// <summary>
-        /// 오른쪽에서 선택한 파일을 왼쪽 폴더로 복사하는 중간 단계 기능
-        /// 아직 덮어쓰기 확인창은 구현하지 않음
+        /// 오른쪽에서 선택한 파일을 왼쪽 폴더로 복사
         /// </summary>
         private void btnCopyFromRight_Click(object sender, EventArgs e)
         {
@@ -375,20 +404,9 @@ namespace FileCompare
             string srcPath = Path.Combine(txtRightDir.Text, fileName);
             string destPath = Path.Combine(txtLeftDir.Text, fileName);
 
-            try
-            {
-                // 중간 단계이므로 단순 복사만 수행
-                File.Copy(srcPath, destPath, true);
+            CopyFileWithConfirmation(srcPath, destPath);
 
-                MessageBox.Show("파일 복사가 완료되었습니다.", "안내");
-
-                RefreshAllViews();
-            }
-            catch (IOException ex)
-            {
-                MessageBox.Show("복사 중 오류: " + ex.Message, "오류",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            RefreshAllViews();
         }
     }
 }
